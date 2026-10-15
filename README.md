@@ -8,7 +8,10 @@ plus the manual testing deliverables for the *Employee Leave Request* feature.
 | Automation framework (Java / Maven) | `pom.xml`, `src/test/java`, `testng.xml` |
 | Automated tests (steps 1–10) | `src/test/java/com/orangehrm/tests` |
 | Screenshots | [`docs/screenshots`](docs/screenshots) |
-| Example execution report (Allure, single file) | [`docs/report/index.html`](docs/report/index.html) |
+| Example execution report (Allure, single file) | [`docs/report/index.html`](docs/report/index.html) – full green run |
+| Example report including a failure (screenshot + page source attached) | [`docs/report-with-failure/index.html`](docs/report-with-failure/index.html) |
+| Assessment report (PDF) – requirement verification, results, summary | [`docs/pdf/Assessment-Report.pdf`](docs/pdf/Assessment-Report.pdf) |
+| Manual testing deliverables (PDF) | [`docs/pdf/Manual-Testing-Employee-Leave-Request.pdf`](docs/pdf/Manual-Testing-Employee-Leave-Request.pdf) |
 | Manual testing – requirement review & risks | [`docs/manual-testing/01-requirements-review.md`](docs/manual-testing/01-requirements-review.md) |
 | Manual testing – test scenarios & test cases | [`docs/manual-testing/02-test-cases.md`](docs/manual-testing/02-test-cases.md) |
 | Manual testing – bug report | [`docs/manual-testing/03-bug-report.md`](docs/manual-testing/03-bug-report.md) |
@@ -183,6 +186,10 @@ The example in [`docs/report/index.html`](docs/report/index.html) is a single se
 ```
 
 (`.allure/` is downloaded by `mvn allure:report` on first use.)
+
+[`docs/report-with-failure/index.html`](docs/report-with-failure/index.html) shows the same run plus a
+deliberately failed login (`-Dapp.password=wrong-password`): the test is marked *Broken* with the error,
+stack trace, the automatic screenshot and the page source attached.
 
 Surefire / TestNG reports are also available in `target/surefire-reports`.
 
