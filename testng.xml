@@ -1,0 +1,29 @@
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+<suite name="OrangeHRM Full Regression" verbose="1">
+
+    <test name="Smoke">
+        <classes>
+            <class name="com.orangehrm.tests.LoginTest"/>
+            <class name="com.orangehrm.tests.EmployeeSearchTest"/>
+        </classes>
+    </test>
+
+    <test name="Employee Lifecycle">
+        <classes>
+            <class name="com.orangehrm.tests.EmployeeTest"/>
+            <class name="com.orangehrm.tests.EmployeeFilterTest"/>
+        </classes>
+    </test>
+
+    <test name="Leave">
+        <classes>
+            <class name="com.orangehrm.tests.LeaveTest"/>
+        </classes>
+    </test>
+
+    <test name="Negative">
+        <classes>
+            <class name="com.orangehrm.tests.NegativeValidationTest"/>
+        </classes>
+    </test>
+</suite>
