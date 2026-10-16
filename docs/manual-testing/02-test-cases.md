@@ -6,7 +6,7 @@
 |---|---|
 | Scope | Apply leave, day calculation, submission, My Leave list, cancellation, validation, manager decision (as far as it affects the employee), balance. |
 | Out of scope | Leave configuration screens (types, periods, holidays) except as test-data set-up; payroll export. |
-| Techniques | Equivalence partitioning and boundary value analysis (dates, balance, comment length), decision table (validation), state transition (request status), role-based testing, error guessing, exploratory testing (charters). |
+| Techniques | Equivalence partitioning and boundary value analysis (dates, balance, comment length), decision table (validation), role-based testing, error guessing. |
 | Levels | UI (functional), API checks for authorisation and stored values, cross-browser smoke. |
 | Priorities | **P1** – blocks release / money-related, **P2** – important functionality, **P3** – minor / cosmetic. |
 
@@ -33,9 +33,8 @@
 | S7 View submitted requests | AC8 | TC-31 – TC-34 |
 | S8 Cancel pending request | AC9 | TC-35 – TC-39 |
 | S9 Invalid requests | AC10 | TC-40 – TC-49 |
-| S10 Manager decision & status flow | Business flow | TC-50 – TC-55 |
-| S11 Security / roles | AC1, AC8, AC9 | TC-56 – TC-59 |
-| S12 Non-functional / compatibility | – | TC-60 – TC-64 |
+| S10 Security / roles | AC1, AC8, AC9 | TC-50 – TC-53 |
+| S11 Non-functional / compatibility | – | TC-54 – TC-58 |
 
 ## 3. Test cases
 
@@ -148,58 +147,21 @@
 
 For each invalid case also verify: no success message, nothing new in My Leave, balance unchanged.
 
-### S10 – Manager decision and status flow
-
-State transitions to cover:
-
-```
-          submit               approve                 date passes
-  (new) ─────────► Pending ──────────────► Scheduled ───────────────► Taken
-                     │  │                      │
-              reject │  │ cancel (employee)    │ cancel (as specified)
-                     ▼  ▼                      ▼
-               Rejected  Cancelled          Cancelled
-```
+### S10 – Security and roles
 
 | ID | Title | Expected result | Priority |
 |---|---|---|---|
-| TC-50 | Manager approves | Status *Scheduled* (approved); employee sees the new status; balance final | P1 |
-| TC-51 | Manager rejects | Status *Rejected*; balance restored; employee sees the rejection (and reason if required) | P1 |
-| TC-52 | Partial approval of a multi-day request | Per-day statuses and balance are consistent | P2 |
-| TC-53 | Approved leave in the past | Status changes to *Taken* | P3 |
-| TC-54 | Invalid transition | Approving an already cancelled request is not possible (UI and API) | P2 |
-| TC-55 | Manager cannot approve own request | Own request does not appear as actionable for self-approval | P2 |
+| TC-50 | Employee sees only own requests | Another employee's requests are not listed | P1 |
+| TC-51 | Cancel another employee's request through the API / URL | Request rejected with 401/403; data unchanged | P1 |
+| TC-52 | Employee cannot approve own request through the API | Request rejected | P1 |
+| TC-53 | Session timeout during submission | User is asked to log in again; no partial request created | P3 |
 
-### S11 – Security and roles
+### S11 – Non-functional / compatibility
 
 | ID | Title | Expected result | Priority |
 |---|---|---|---|
-| TC-56 | Employee sees only own requests | Another employee's requests are not listed | P1 |
-| TC-57 | Cancel another employee's request through the API / URL | Request rejected with 401/403; data unchanged | P1 |
-| TC-58 | Employee cannot approve own request through the API | Request rejected | P1 |
-| TC-59 | Session timeout during submission | User is asked to log in again; no partial request created | P3 |
-
-### S12 – Non-functional / compatibility
-
-| ID | Title | Expected result | Priority |
-|---|---|---|---|
-| TC-60 | Different date formats configured (dd-mm-yyyy, mm-dd-yyyy, yyyy-dd-mm) | Dates parsed and displayed correctly; no day / month swap | P1 |
-| TC-61 | Browser / server in different time zones (e.g. UTC-8 browser, UTC+3 server) | Stored dates equal selected dates; no off-by-one | P1 |
-| TC-62 | Cross-browser smoke (Chrome, Firefox, Edge, Safari) | Apply / view / cancel work | P2 |
-| TC-63 | Mobile viewport | Form usable, date picker usable | P3 |
-| TC-64 | Keyboard-only and screen reader | Fields have labels, errors are announced | P3 |
-
-## 4. Exploratory testing charters
-
-| Charter | Focus |
-|---|---|
-| EX-1 | Explore the day calculation with unusual ranges (holiday on a weekend, leap day 29 Feb, end of year) to discover mismatches between displayed and deducted days. |
-| EX-2 | Explore concurrent actions (two tabs, back button after submit, refresh during submit) to discover duplicate or lost requests. |
-| EX-3 | Explore balance behaviour across the whole life cycle (submit → reject → resubmit → approve → cancel) to discover balances that are not restored. |
-| EX-4 | Explore configuration changes while requests are pending (holiday added, work week changed, entitlement reduced) to discover stale calculations. |
-
-## 5. Automation candidates
-
-Regression-worthy and stable: TC-11, TC-13, TC-14, TC-16, TC-25, TC-26, TC-31, TC-35, TC-36, TC-40 – TC-46,
-TC-50, TC-51, TC-56 – TC-58 (the last three at API level). Several of these are already automated in this
-repository (`LeaveTest`, `NegativeValidationTest`).
+| TC-54 | Different date formats configured (dd-mm-yyyy, mm-dd-yyyy, yyyy-dd-mm) | Dates parsed and displayed correctly; no day / month swap | P1 |
+| TC-55 | Browser / server in different time zones (e.g. UTC-8 browser, UTC+3 server) | Stored dates equal selected dates; no off-by-one | P1 |
+| TC-56 | Cross-browser smoke (Chrome, Firefox, Edge, Safari) | Apply / view / cancel work | P2 |
+| TC-57 | Mobile viewport | Form usable, date picker usable | P3 |
+| TC-58 | Keyboard-only and screen reader | Fields have labels, errors are announced | P3 |

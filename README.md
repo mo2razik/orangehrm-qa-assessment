@@ -91,7 +91,7 @@ Settings are in `src/test/resources/config/config.properties` (URL, credentials,
 In `docs/manual-testing`:
 
 1. `01-requirements-review.md` – questions, missing requirements, assumptions and risks
-2. `02-test-cases.md` – test approach and 64 test cases
+2. `02-test-cases.md` – test approach and 58 test cases
 3. `03-bug-report.md` – bug report for the leave balance issue
 
 ## Troubleshooting
