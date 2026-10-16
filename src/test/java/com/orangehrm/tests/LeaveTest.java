@@ -17,7 +17,6 @@ import java.time.LocalDate;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 
 @Epic("OrangeHRM")
 @Feature("Leave")
@@ -38,30 +37,34 @@ public class LeaveTest extends BaseTest {
         for (int attempt = 1; attempt <= MAX_DATE_ATTEMPTS && toast == null; attempt++) {
             LocalDate candidate = TestDataFactory.futureWorkingDay();
             log.info("Applying {} leave on {} (attempt {})", leaveType, candidate, attempt);
-            apply.selectLeaveType(leaveType)
+            toast = apply.selectLeaveType(leaveType)
                     .setFromDate(candidate)
                     .setToDate(candidate)
                     .setComment(comment)
-                    .apply();
-            if (apply.isToastDisplayed(10)) {
-                toast = apply.waitForToastMessage();
+                    .submit();
+            if (toast != null) {
                 leaveDate = candidate;
-            } else if (apply.isOverlapWarningDisplayed()) {
-                // another run already booked that day on the shared environment - pick another one
-                apply.open();
             } else {
-                fail("Leave request was neither saved nor reported as overlapping");
+                // overlapping request: another run already booked that day on the shared environment
+                apply.open();
             }
         }
 
         assertEquals(toast, "Successfully Saved", "Leave submission notification");
         checkpoint("06_leave_request_submitted");
 
-        MyLeaveListPage myLeave = new MyLeaveListPage(driver()).open().filterByDate(leaveDate);
+        // search a week either side and locate the request by its unique comment,
+        // then verify the date separately so a date mismatch is reported clearly
+        MyLeaveListPage myLeave = new MyLeaveListPage(driver()).open()
+                .filterByDateRange(leaveDate.minusDays(7), leaveDate.plusDays(7));
         boolean cancelled = false;
         try {
-            LeaveRow row = myLeave.findRequest(leaveDate, leaveType, comment)
+            log.info("My Leave rows: {}", myLeave.getRows());
+            LeaveRow row = myLeave.findByComment(comment)
                     .orElseThrow(() -> new AssertionError("Submitted leave request not found in My Leave"));
+            assertTrue(row.date().contains(myLeave.formatForList(leaveDate)),
+                    "Leave date should be " + myLeave.formatForList(leaveDate) + " but was " + row.date());
+            assertEquals(row.leaveType(), leaveType, "Leave type");
             assertTrue(row.status().startsWith("Pending Approval"),
                     "Status should be Pending Approval but was " + row.status());
             assertEquals(row.numberOfDays(), "1.00", "Number of days for a single full day");

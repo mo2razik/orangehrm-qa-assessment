@@ -36,10 +36,12 @@ public class NegativeValidationTest extends BaseTest {
     @Severity(SeverityLevel.CRITICAL)
     @Description("Example A - required field validation on Add Employee")
     public void createEmployeeWithoutRequiredFields() {
-        AddEmployeePage addPage = new AddEmployeePage(driver()).open();
-        String proposedId = addPage.getEmployeeId();
+        // unique middle name + employee id act as markers to prove nothing was saved
+        // (the proposed id cannot be used: other demo users may take it in the meantime)
+        Employee incomplete = new Employee("", "Neg" + TestDataFactory.randomLetters(8), "");
+        incomplete.setEmployeeId(TestDataFactory.uniqueEmployeeId());
 
-        addPage.fill(new Employee("", "", "")).saveExpectingErrors();
+        AddEmployeePage addPage = new AddEmployeePage(driver()).open().fill(incomplete).saveExpectingErrors();
         checkpoint("05_negative_required_fields");
 
         assertEquals(addPage.getFirstNameError(), REQUIRED, "First name validation");
@@ -47,8 +49,10 @@ public class NegativeValidationTest extends BaseTest {
         assertTrue(addPage.isStillOnAddEmployeePage(), "User should stay on Add Employee");
         assertFalse(addPage.isToastDisplayed(2), "No success notification expected");
 
-        EmployeeListPage list = new EmployeeListPage(driver()).open().searchById(proposedId);
-        assertFalse(list.findRowById(proposedId).isPresent(), "Employee must not be created");
+        EmployeeListPage list = new EmployeeListPage(driver()).open().searchById(incomplete.getEmployeeId());
+        assertEquals(list.getRecordCount(), 0, "Employee must not be created (searched by its unique id)");
+        list.reset().enterPartialEmployeeName(incomplete.getMiddleName()).search();
+        assertEquals(list.getRecordCount(), 0, "Employee must not be created (searched by its unique middle name)");
     }
 
     @Test(groups = {"negative", "regression"}, description = "Employee Id longer than 10 characters is rejected")

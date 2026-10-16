@@ -4,9 +4,12 @@ import com.orangehrm.utils.DateUtils;
 import io.qameta.allure.Step;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
+import org.openqa.selenium.StaleElementReferenceException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.support.ui.WebDriverWait;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -28,6 +31,7 @@ public class ApplyLeavePage extends BasePage {
     private static final By APPLY = buttonByText("Apply");
     private static final By OVERLAP = By.xpath("//*[contains(normalize-space(),'Overlapping Leave Request')]");
     private static final Pattern NUMBER = Pattern.compile("(-?\\d+(?:\\.\\d+)?)");
+    private static final int SUBMIT_TIMEOUT_SECONDS = 30;
 
     public ApplyLeavePage(WebDriver driver) {
         super(driver);
@@ -128,6 +132,24 @@ public class ApplyLeavePage extends BasePage {
 
     public boolean isOverlapWarningDisplayed() {
         return isVisible(OVERLAP, 3);
+    }
+
+    /**
+     * Clicks Apply and waits (polling every 100 ms) for the outcome.
+     *
+     * @return the notification text, or {@code null} when OrangeHRM reports an overlapping request
+     */
+    @Step("Submit leave request")
+    public String submit() {
+        click(APPLY);
+        String[] toast = new String[1];
+        new WebDriverWait(driver, Duration.ofSeconds(SUBMIT_TIMEOUT_SECONDS), Duration.ofMillis(100))
+                .ignoring(StaleElementReferenceException.class)
+                .until(d -> {
+                    toast[0] = currentToastText();
+                    return toast[0] != null || !d.findElements(OVERLAP).isEmpty();
+                });
+        return toast[0];
     }
 
     public String getToDateError() {

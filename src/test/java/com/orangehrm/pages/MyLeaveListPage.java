@@ -35,17 +35,21 @@ public class MyLeaveListPage extends BasePage {
         return this;
     }
 
-    /** Narrows the list to a single day so the request is found regardless of paging. */
-    @Step("Filter My Leave by date {date}")
-    public MyLeaveListPage filterByDate(LocalDate date) {
+    /** Narrows the list to a date range so the request is found regardless of paging. */
+    @Step("Filter My Leave from {from} to {to}")
+    public MyLeaveListPage filterByDateRange(LocalDate from, LocalDate to) {
         String placeholder = visible(FROM_DATE).getAttribute("placeholder");
-        String formatted = DateUtils.format(date, placeholder);
-        setDate(FROM_DATE, formatted);
-        setDate(TO_DATE, formatted);
+        setDate(FROM_DATE, DateUtils.format(from, placeholder));
+        setDate(TO_DATE, DateUtils.format(to, placeholder));
         click(SEARCH);
         waitForLoadersToDisappear();
         visible(RECORDS_FOUND);
         return this;
+    }
+
+    /** The request carrying the given unique comment, whatever its date. */
+    public Optional<LeaveRow> findByComment(String comment) {
+        return getRows().stream().filter(r -> r.comments().contains(comment)).findFirst();
     }
 
     private void setDate(By input, String formatted) {

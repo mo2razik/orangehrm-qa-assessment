@@ -35,6 +35,13 @@ public class PersonalDetailsPage extends BasePage {
         return this;
     }
 
+    /** Opens the logged-in user's own record (My Info). */
+    @Step("Open My Info")
+    public PersonalDetailsPage openMyInfo() {
+        openPath("/pim/viewMyDetails");
+        return waitUntilLoaded();
+    }
+
     public String getEmpNumberFromUrl() {
         String url = currentUrl();
         return url.substring(url.lastIndexOf('/') + 1);

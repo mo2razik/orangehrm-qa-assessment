@@ -3,6 +3,7 @@ package com.orangehrm.base;
 import com.orangehrm.config.ConfigReader;
 import com.orangehrm.driver.DriverManager;
 import com.orangehrm.listeners.TestListener;
+import com.orangehrm.models.EmployeeRow;
 import com.orangehrm.pages.DashboardPage;
 import com.orangehrm.pages.EmployeeListPage;
 import com.orangehrm.pages.LoginPage;
@@ -16,7 +17,9 @@ import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Listeners;
 
+import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * Starts a fresh browser for every test method (and logs in unless the test opts out),
@@ -24,6 +27,8 @@ import java.util.Set;
  */
 @Listeners(TestListener.class)
 public abstract class BaseTest {
+
+    private static final Pattern GENERATED_LAST_NAME = Pattern.compile("Qa[a-z]{8}");
 
     protected final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -63,10 +68,10 @@ public abstract class BaseTest {
      */
     @AfterSuite(alwaysRun = true)
     public void cleanUpTestData() {
-        Set<String> ids = TestDataRegistry.createdEmployeeIds();
-        if (!ConfigReader.getBoolean("cleanup.enabled") || ids.isEmpty()) {
+        if (!ConfigReader.getBoolean("cleanup.enabled")) {
             return;
         }
+        Set<String> ids = TestDataRegistry.createdEmployeeIds();
         log.info("Cleaning up {} employee(s) created during the run: {}", ids.size(), ids);
         try {
             DriverManager.startDriver();
@@ -84,10 +89,36 @@ public abstract class BaseTest {
                     log.warn("Could not delete employee {}: {}", id, e.getMessage());
                 }
             }
+            deleteLeftoversOfInterruptedRuns(list);
         } catch (RuntimeException e) {
             log.warn("Test data cleanup failed: {}", e.getMessage());
         } finally {
             DriverManager.quitDriver();
+        }
+    }
+
+    /**
+     * Removes employees left behind by runs that were stopped before their cleanup.
+     * Only names produced by {@code TestDataFactory} ("Automation Test Qa" + 8 letters) are touched.
+     */
+    private void deleteLeftoversOfInterruptedRuns(EmployeeListPage list) {
+        String firstAndMiddle = ConfigReader.get("test.data.prefix") + " " + ConfigReader.get("test.data.middle.name");
+        List<EmployeeRow> leftovers = list.open()
+                .enterPartialEmployeeName(ConfigReader.get("test.data.prefix"))
+                .search()
+                .getRows().stream()
+                .filter(r -> r.firstAndMiddleName().equals(firstAndMiddle) && GENERATED_LAST_NAME.matcher(r.lastName()).matches())
+                .toList();
+        for (EmployeeRow row : leftovers) {
+            try {
+                list.open().searchById(row.id());
+                if (list.findRowById(row.id()).isPresent()) {
+                    list.deleteEmployee(row.id());
+                    log.info("Deleted leftover employee {} ({})", row.id(), row.fullName());
+                }
+            } catch (RuntimeException e) {
+                log.warn("Could not delete leftover employee {}: {}", row.id(), e.getMessage());
+            }
         }
     }
 }

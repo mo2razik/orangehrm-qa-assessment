@@ -3,8 +3,10 @@ package com.orangehrm.flows;
 import com.orangehrm.config.ConfigReader;
 import com.orangehrm.pages.AddEntitlementPage;
 import com.orangehrm.pages.ApplyLeavePage;
+import com.orangehrm.pages.PersonalDetailsPage;
 import io.qameta.allure.Step;
 import org.openqa.selenium.WebDriver;
+import org.testng.SkipException;
 
 import java.util.List;
 
@@ -25,7 +27,6 @@ public final class LeaveFlows {
     @Step("Ensure the logged-in user has a leave type with balance")
     public static String prepareLeaveTypeWithBalance(WebDriver driver) {
         ApplyLeavePage apply = new ApplyLeavePage(driver).open();
-        String userName = apply.getLoggedInUserName();
 
         if (apply.hasLeaveTypesWithBalance()) {
             List<String> types = apply.getAvailableLeaveTypes();
@@ -36,21 +37,30 @@ public final class LeaveFlows {
                 }
             }
             // types exist but none has enough balance -> top up the first one
-            return topUpAndSelect(driver, userName, types.get(0));
+            return topUpAndSelect(driver, types.get(0));
         }
 
-        AddEntitlementPage entitlementPage = new AddEntitlementPage(driver).open();
-        String type = entitlementPage.getLeaveTypes().get(0);
-        return topUpAndSelect(driver, userName, type);
+        List<String> definedTypes = new AddEntitlementPage(driver).open().getLeaveTypes();
+        if (definedTypes.isEmpty()) {
+            // the shared demo is edited by many people; without any leave type no request is possible
+            throw new SkipException("Precondition not met: no leave types are defined in the demo environment");
+        }
+        return topUpAndSelect(driver, definedTypes.get(0));
     }
 
-    private static String topUpAndSelect(WebDriver driver, String userName, String leaveType) {
+    private static String topUpAndSelect(WebDriver driver, String leaveType) {
+        // the name in the top bar is not always the stored employee name (demo users rename it),
+        // so the logged-in employee's name is read from My Info
+        PersonalDetailsPage myInfo = new PersonalDetailsPage(driver).openMyInfo();
+        String firstName = myInfo.getFirstName();
+        String lastName = myInfo.getLastName();
+
         new AddEntitlementPage(driver).open()
-                .addEntitlement(userName, leaveType, ConfigReader.getInt("leave.entitlement.days"));
+                .addEntitlement(firstName, lastName, leaveType, ConfigReader.getInt("leave.entitlement.days"));
         ApplyLeavePage apply = new ApplyLeavePage(driver).open();
         if (!apply.hasLeaveTypesWithBalance()) {
             throw new IllegalStateException("Leave balance still unavailable after adding an entitlement for "
-                    + userName + " / " + leaveType);
+                    + firstName + " " + lastName + " / " + leaveType);
         }
         apply.selectLeaveType(leaveType);
         return leaveType;

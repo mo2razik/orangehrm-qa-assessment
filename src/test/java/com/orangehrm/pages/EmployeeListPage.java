@@ -97,6 +97,10 @@ public class EmployeeListPage extends BasePage {
         return this;
     }
 
+    public List<String> getJobTitleOptions() {
+        return listOptions(selectByLabel(JOB_TITLE));
+    }
+
     public String getEmployeeNameFilterValue() {
         return value(inputByLabel(EMPLOYEE_NAME));
     }

@@ -26,12 +26,13 @@ public final class EmployeeFlows {
     public static String create(WebDriver driver, Employee employee) {
         AddEmployeePage addPage = new EmployeeListPage(driver).open().goToAddEmployee();
         addPage.fill(employee);
-        employee.setEmployeeId(addPage.getEmployeeId());
         PersonalDetailsPage details = addPage.save();
-        String toast = details.waitForToastMessage();
         details.waitUntilLoaded();
+        // read the id from the saved record: it may differ from the proposed one after a retry,
+        // and register it straight away so it is cleaned up even if a later check fails
+        employee.setEmployeeId(details.getEmployeeId());
         TestDataRegistry.registerEmployee(employee.getEmployeeId());
-        return toast;
+        return addPage.getLastSaveMessage();
     }
 
     /** Searches the employee list by employee id and opens the matching record. */

@@ -155,7 +155,7 @@ public abstract class BasePage {
         wait.until(ExpectedConditions.visibilityOfElementLocated(SELECT_OPTIONS));
         List<String> options = driver.findElements(SELECT_OPTIONS).stream()
                 .map(e -> e.getText().trim())
-                .filter(t -> !t.isEmpty() && !t.startsWith("--"))
+                .filter(t -> !t.isEmpty() && !t.startsWith("--") && !t.startsWith("No "))
                 .toList();
         // close the dropdown again
         driver.findElement(select).click();
@@ -225,15 +225,43 @@ public abstract class BasePage {
 
     // ---------------------------------------------------------- toasts
 
-    /** Waits for a toast and returns its message (e.g. "Successfully Saved"). */
+    /**
+     * Waits for a toast and returns its message (e.g. "Successfully Saved").
+     * Toasts are only shown for a few seconds, so the page is polled every 100 ms.
+     */
     @Step("Wait for notification")
     public String waitForToastMessage() {
-        String message = visible(TOAST_MESSAGE).getText().trim();
-        return message;
+        return toastWait(ConfigReader.explicitTimeout()).until(d -> currentToastText());
     }
 
     public boolean isToastDisplayed(int seconds) {
-        return isVisible(TOAST, seconds);
+        try {
+            toastWait(seconds).until(d -> currentToastText());
+            return true;
+        } catch (TimeoutException e) {
+            return false;
+        }
+    }
+
+    /** Text of the toast currently in the DOM, or null when there is none. */
+    protected String currentToastText() {
+        for (WebElement toast : driver.findElements(TOAST_MESSAGE)) {
+            try {
+                String text = toast.getAttribute("textContent");
+                if (text != null && !text.isBlank()) {
+                    return text.trim();
+                }
+            } catch (StaleElementReferenceException ignored) {
+                // toast disappeared while reading it
+            }
+        }
+        return null;
+    }
+
+    private WebDriverWait toastWait(int seconds) {
+        WebDriverWait toastWait = new WebDriverWait(driver, Duration.ofSeconds(seconds), Duration.ofMillis(100));
+        toastWait.ignoring(StaleElementReferenceException.class);
+        return toastWait;
     }
 
     public void waitForToastToDisappear() {

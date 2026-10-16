@@ -1,9 +1,15 @@
 package com.orangehrm.pages;
 
+import com.orangehrm.config.ConfigReader;
 import com.orangehrm.models.Employee;
+import com.orangehrm.utils.TestDataFactory;
 import io.qameta.allure.Step;
 import org.openqa.selenium.By;
+import org.openqa.selenium.StaleElementReferenceException;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.support.ui.WebDriverWait;
+
+import java.time.Duration;
 
 public class AddEmployeePage extends BasePage {
 
@@ -14,6 +20,11 @@ public class AddEmployeePage extends BasePage {
     private static final By EMPLOYEE_ID = inputByLabel("Employee Id");
     private static final By SAVE = By.cssSelector("button[type='submit']");
     private static final By FIELD_ERRORS = By.cssSelector(".oxd-input-field-error-message");
+    private static final By EMPLOYEE_ID_ERROR = errorByLabel("Employee Id");
+    private static final String DETAILS_URL = "/pim/viewPersonalDetails/empNumber/";
+    private static final int MAX_SAVE_ATTEMPTS = 3;
+
+    private String lastSaveMessage;
 
     public AddEmployeePage(WebDriver driver) {
         super(driver);
@@ -55,11 +66,47 @@ public class AddEmployeePage extends BasePage {
         return value(EMPLOYEE_ID);
     }
 
-    /** Clicks Save and waits for the redirect to the new employee's personal details. */
+    /** Notification shown by the last successful {@link #save()} (e.g. "Successfully Saved"). */
+    public String getLastSaveMessage() {
+        return lastSaveMessage;
+    }
+
+    /**
+     * Clicks Save and waits for the redirect to the new employee's personal details.
+     * On the shared demo another user can take the proposed Employee Id between page load
+     * and save ("Employee Id already exists"); in that case a unique id is generated and
+     * the save is retried.
+     */
     @Step("Save employee")
     public PersonalDetailsPage save() {
-        click(SAVE);
-        return new PersonalDetailsPage(driver);
+        lastSaveMessage = null;
+        for (int attempt = 1; attempt <= MAX_SAVE_ATTEMPTS; attempt++) {
+            click(SAVE);
+            // The success toast appears on this page right before the redirect and only for a
+            // few seconds, so it is captured here while polling for the outcome every 100 ms.
+            new WebDriverWait(driver, Duration.ofSeconds(ConfigReader.explicitTimeout()), Duration.ofMillis(100))
+                    .ignoring(StaleElementReferenceException.class)
+                    .until(d -> {
+                        String toast = currentToastText();
+                        if (toast != null) {
+                            lastSaveMessage = toast;
+                        }
+                        return d.getCurrentUrl().contains(DETAILS_URL) || !d.findElements(EMPLOYEE_ID_ERROR).isEmpty();
+                    });
+            if (currentUrl().contains(DETAILS_URL)) {
+                PersonalDetailsPage details = new PersonalDetailsPage(driver);
+                if (lastSaveMessage == null) {
+                    lastSaveMessage = details.isToastDisplayed(5) ? details.waitForToastMessage() : "";
+                }
+                return details;
+            }
+            String error = text(EMPLOYEE_ID_ERROR);
+            if (!error.contains("already exists")) {
+                throw new IllegalStateException("Employee could not be saved: " + error);
+            }
+            setEmployeeId(TestDataFactory.uniqueEmployeeId());
+        }
+        throw new IllegalStateException("Employee could not be saved after " + MAX_SAVE_ATTEMPTS + " attempts");
     }
 
     /** Clicks Save when a validation error is expected (no redirect). */

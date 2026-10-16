@@ -38,11 +38,12 @@ public class AddEntitlementPage extends BasePage {
      *
      * @return toast message displayed after confirming
      */
-    @Step("Add {days} day(s) of \"{leaveType}\" entitlement for \"{employeeName}\"")
-    public String addEntitlement(String employeeName, String leaveType, int days) {
-        String[] nameParts = employeeName.trim().split("\\s+");
-        typeAndPickSuggestion(EMPLOYEE_NAME, employeeName, nameParts)
-                .orElseThrow(() -> new IllegalStateException("No employee suggestion for " + employeeName));
+    @Step("Add {days} day(s) of \"{leaveType}\" entitlement for \"{firstName} {lastName}\"")
+    public String addEntitlement(String firstName, String lastName, String leaveType, int days) {
+        // type the first name only and pick the suggestion that also contains the last name,
+        // so middle names or extra spaces in the stored name do not break the search
+        typeAndPickSuggestion(EMPLOYEE_NAME, firstName, firstName, lastName)
+                .orElseThrow(() -> new IllegalStateException("No employee suggestion for " + firstName + " " + lastName));
         chooseOption(LEAVE_TYPE, leaveType);
         type(ENTITLEMENT, String.valueOf(days));
         click(SAVE);
@@ -50,6 +51,11 @@ public class AddEntitlementPage extends BasePage {
         if (isVisible(CONFIRM, 10)) {
             clickable(CONFIRM).click();
         }
-        return waitForToastMessage();
+        String toast = waitForToastMessage();
+        // OrangeHRM then redirects to the entitlement list; wait for it so the redirect
+        // does not override the next navigation of the test
+        waitForUrlContains("/leave/viewLeaveEntitlements");
+        waitForLoadersToDisappear();
+        return toast;
     }
 }

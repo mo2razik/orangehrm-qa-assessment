@@ -8,6 +8,7 @@ import io.qameta.allure.Epic;
 import io.qameta.allure.Feature;
 import io.qameta.allure.Severity;
 import io.qameta.allure.SeverityLevel;
+import org.testng.SkipException;
 import org.testng.annotations.Test;
 
 import java.util.List;
@@ -25,6 +26,7 @@ import static org.testng.Assert.assertTrue;
 public class EmployeeFilterTest extends BaseTest {
 
     private static final String SELECT_PLACEHOLDER = "-- Select --";
+    private static final int MAX_JOB_TITLES_TO_TRY = 15;
 
     @Test(groups = "regression", description = "Filter by Job Title + Employment Status, then reset")
     @Severity(SeverityLevel.NORMAL)
@@ -33,8 +35,20 @@ public class EmployeeFilterTest extends BaseTest {
         EmployeeListPage list = dashboard().goToEmployeeList();
         int unfilteredCount = list.getRecordCount();
 
-        EmployeeRow reference = list.findRow(r -> !r.jobTitle().isBlank() && !r.employmentStatus().isBlank())
-                .orElseThrow(() -> new AssertionError("No employee with job title and employment status found"));
+        // Pick a job title that currently has an employee with an employment status.
+        // Values come from the dropdown, not from the first page of rows, because the
+        // shared demo data changes constantly.
+        EmployeeRow reference = null;
+        for (String jobTitle : list.getJobTitleOptions().stream().limit(MAX_JOB_TITLES_TO_TRY).toList()) {
+            list.selectJobTitle(jobTitle).search();
+            reference = list.findRow(r -> !r.employmentStatus().isBlank()).orElse(null);
+            if (reference != null) {
+                break;
+            }
+        }
+        if (reference == null) {
+            throw new SkipException("No employee with both a job title and an employment status in the demo data");
+        }
         log.info("Filtering with job title '{}' and status '{}'", reference.jobTitle(), reference.employmentStatus());
 
         list.selectJobTitle(reference.jobTitle())
@@ -49,13 +63,14 @@ public class EmployeeFilterTest extends BaseTest {
             assertEquals(row.jobTitle(), reference.jobTitle(), "Job title of " + row);
             assertEquals(row.employmentStatus(), reference.employmentStatus(), "Employment status of " + row);
         }
-        assertTrue(results.stream().anyMatch(r -> r.id().equals(reference.id()) || reference.id().isBlank()),
+        String referenceId = reference.id();
+        assertTrue(results.stream().anyMatch(r -> r.id().equals(referenceId)),
                 "Reference employee should be part of the filtered result");
 
         list.reset();
         assertEquals(list.getSelectedJobTitle(), SELECT_PLACEHOLDER, "Job title filter cleared");
         assertEquals(list.getSelectedEmploymentStatus(), SELECT_PLACEHOLDER, "Employment status filter cleared");
-        assertEquals(list.getRecordCount(), unfilteredCount, "Reset restores the full result set");
+        assertResetRestoresFullList(list);
     }
 
     @Test(groups = "regression", description = "Filter by Employee Name + Employee Id, then reset")
@@ -82,9 +97,22 @@ public class EmployeeFilterTest extends BaseTest {
                     "Name of " + row + " should contain " + reference.lastName());
         }
 
+        assertTrue(list.getRecordCount() < unfilteredCount, "Filtered set should be smaller than the full set");
+
         list.reset();
         assertEquals(list.getEmployeeNameFilterValue(), "", "Employee name filter cleared");
         assertEquals(list.getEmployeeIdFilterValue(), "", "Employee id filter cleared");
-        assertEquals(list.getRecordCount(), unfilteredCount, "Reset restores the full result set");
+        assertResetRestoresFullList(list);
+    }
+
+    /**
+     * Compares the result after Reset with a freshly loaded, unfiltered list. Comparing with the
+     * count read at the start of the test is unreliable because other users of the shared demo
+     * add and delete employees while the test runs.
+     */
+    private void assertResetRestoresFullList(EmployeeListPage list) {
+        int afterReset = list.getRecordCount();
+        int freshUnfiltered = new EmployeeListPage(driver()).open().getRecordCount();
+        assertEquals(afterReset, freshUnfiltered, "Reset restores the full (unfiltered) result set");
     }
 }
