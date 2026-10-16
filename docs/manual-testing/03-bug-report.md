@@ -55,26 +55,3 @@
 * Employees lose leave days they did not take; the error accumulates with every request.
 * The balance shown to the employee and the request duration contradict each other, which damages trust and generates HR tickets.
 * If the balance feeds payroll or leave encashment, it has a financial impact.
-
-## Notes for investigation
-
-Observations that would help narrow the root cause (to be checked, not confirmed):
-
-| Hypothesis | How to check |
-|---|---|
-| **End date counted twice / off-by-one** – deduction counts `to - from + 1` on top of an inclusive range, or iterates `from..to` inclusive while the UI uses working days. | Repeat with a single day (10 Aug → 10 Aug). Expected 1, check if 2 is deducted. |
-| **Time-zone shift** – dates are stored as date-time and converted to UTC, so 12 Aug becomes 13 Aug or 10 Aug becomes 9 Aug in the deduction logic. | Repeat with browser / user / server set to the same time zone, then different ones (e.g. UTC+3 vs UTC). Check stored dates in the request details and API payload. |
-| **Different calendar in the two calculations** – the UI excludes a non-working day / holiday but the deduction does not (or the reverse). | Check work week and holiday configuration for the employee's location; repeat with a range Thu–Mon. |
-| **Partial-day setting ignored** in the deduction (e.g. "All days – half day" treated as full + extra). | Repeat with Partial Days = None vs Half Day. |
-| **Double deduction** – pending days reserved at submission and deducted again at approval / by a scheduled job. | Compare balance right after submission, after approval, and after the next scheduled job run. |
-| **Stale balance cache** | Re-login / clear cache and check the balance again; compare with the entitlement usage report. |
-
-Additional data to collect: whether other leave types and other employees are affected, whether the extra
-day appears in the request's per-day list (4 rows instead of 3), and the first build where it occurs
-(regression vs existing issue).
-
-## Suggested regression tests after the fix
-
-* Single day, Mon–Wed, range over a weekend, range over a holiday, half day, partial days.
-* Balance check after submit, approve, reject and cancel.
-* Same scenarios with browser and server in different time zones.
